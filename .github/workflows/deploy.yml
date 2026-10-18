@@ -37,11 +37,11 @@ jobs:
         with:
           context: .
           push: true
-          tags: 917993967907.dkr.ecr.eu-north-1.amazonaws.com/cloud-lab1-api:${{ github.sha }}
+          tags: 917993967907.dkr.ecr.eu-north-1.amazonaws.com/cloud-lab1-api:${{ github.sha }}-${{ github.run_attempt }}
 
       - name: Register new ECS task definition
         env:
-          IMAGE_URI: 917993967907.dkr.ecr.eu-north-1.amazonaws.com/cloud-lab1-api:${{ github.sha }}
+          IMAGE_URI: 917993967907.dkr.ecr.eu-north-1.amazonaws.com/cloud-lab1-api:${{ github.sha }}-${{ github.run_attempt }}
         run: |
           TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition cloud-lab1-api --query taskDefinition --output json)
           NEW_TASK=$(echo "$TASK_DEFINITION" | jq --arg IMAGE "$IMAGE_URI" '.containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
@@ -52,3 +52,4 @@ jobs:
         run: |
           aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" --task-definition cloud-lab1-api --force-new-deployment
           aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
+
