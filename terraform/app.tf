@@ -1,3 +1,4 @@
+
 resource "aws_cloudwatch_log_group" "api" {
   name              = "/ecs/${var.project_name}-api"
   retention_in_days = 7
@@ -20,6 +21,10 @@ resource "aws_iam_role" "ecs_execution" {
       Action = "sts:AssumeRole"
     }]
   })
+
+  tags = {
+    Project = var.project_name
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_execution" {
@@ -35,6 +40,7 @@ resource "aws_ecs_cluster" "main" {
   }
 }
 
+# Public Application Load Balancer.
 resource "aws_lb" "api" {
   name               = "cloud-lab1-alb"
   internal           = false
@@ -108,6 +114,7 @@ resource "aws_ecs_task_definition" "api" {
 
       logConfiguration = {
         logDriver = "awslogs"
+
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.api.name
           "awslogs-region"        = var.aws_region
@@ -135,10 +142,11 @@ resource "aws_ecs_service" "api" {
 
   health_check_grace_period_seconds = 60
 
+  # ECS tasks stay in private subnets without public IP addresses.
   network_configuration {
-    subnets          = aws_subnet.public[*].id
+    subnets          = aws_subnet.private_app[*].id
     security_groups  = [aws_security_group.app.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {
@@ -149,7 +157,8 @@ resource "aws_ecs_service" "api" {
 
   depends_on = [
     aws_lb_listener.http,
-    aws_iam_role_policy_attachment.ecs_execution
+    aws_iam_role_policy_attachment.ecs_execution,
+    aws_route_table_association.private_app
   ]
 
   tags = {
